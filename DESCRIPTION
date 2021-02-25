@@ -1,6 +1,6 @@
 Package: NFCP
 Title: N-Factor Commodity Pricing Through Term Structure Estimation
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(person("Thomas", "Aspinall", email = "tomaspinall2512@gmail.com", 
                   role = c("aut", "cre"),
                   comment = c(ORCID = "0000-0002-6968-1989")),
@@ -27,11 +27,11 @@ LazyData: true
 RoxygenNote: 7.1.1.9000
 RdMacros: mathjaxr, Rdpack
 Suggests: OptionPricing, knitr, rmarkdown
-Imports: FKF.SP, MASS, numDeriv, parallel, rgenoud, stats, mathjaxr,
-        Rdpack, curl
+Imports: FKF.SP, LSMRealOptions, MASS, numDeriv, parallel, rgenoud,
+        stats, mathjaxr, Rdpack, curl
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2021-01-09 04:05:01 UTC; Thomas Aspinall
+Packaged: 2021-02-25 05:40:00 UTC; Thomas Aspinall
 Author: Thomas Aspinall [aut, cre] (<https://orcid.org/0000-0002-6968-1989>),
   Adrian Gepp [aut] (<https://orcid.org/0000-0003-1666-5501>),
   Geoff Harris [aut] (<https://orcid.org/0000-0003-4284-8619>),
@@ -40,4 +40,4 @@ Author: Thomas Aspinall [aut, cre] (<https://orcid.org/0000-0002-6968-1989>),
   Bruce Vanstone [aut] (<https://orcid.org/0000-0002-3977-2468>)
 Maintainer: Thomas Aspinall <tomaspinall2512@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-01-13 12:00:06 UTC
+Date/Publication: 2021-02-25 11:40:12 UTC

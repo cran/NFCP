@@ -137,7 +137,7 @@ NFCP.Parameters <- function(N.factors, GBM, Initial.State, S.Constant, N.contrac
   cat("\n----------------------------------------------------------------\n")
   cat(paste0(N.factors, ifelse(N.factors>1, " Factors", " Factor"), " model:", ifelse(GBM, " first factor is a GBM", " first factor is an MR"),  "\n\n"))
   cat("Risk Neutral SDE: \n\n")
-  if(GBM) cat("log(S_t) = sum(x)\n\n") else cat("log(S_t) = E + sum(x)\n\n")
+  if(GBM) cat("log(S_t) = sum(x_t)\n\n") else cat("log(S_t) = E + sum(x_t)\n\n")
   cat("Where: \n")
   if(GBM){
     cat("d x1_t    = mu_star * dt  + sigma_1 * dW_1\n")
@@ -153,7 +153,7 @@ NFCP.Parameters <- function(N.factors, GBM, Initial.State, S.Constant, N.contrac
   }
   }
 
-  if(!is.null(N.contracts)) if(N.contracts == 0) input_names <- input_names[!grepl("contract", input_names, fixed = TRUE)]
+  if(!is.null(N.contracts)) if(N.contracts == 0) input_names <- input_names[!grepl("contract", input_names)]
 
   return(c(input_names, use.names = FALSE))
 }
@@ -193,12 +193,15 @@ NFCP.Parameters <- function(N.factors, GBM, Initial.State, S.Constant, N.contrac
 #'@return
 #'\code{Stitch.Contracts} returns a matrix of stitched futures prices if \code{verbose = T} and a list with two or three objects otherwise (see below).
 #'
-#'\code{Prices} A data frame of Stitched futures prices. Each row represents an observation of the specified contracts.
+#'\tabular{ll}{
 #'
-#'\code{Maturities} A data frame of the time-to-maturity of observed futures prices. Each row represents an observation of the
-#'specified contracts. Returned only when \bold{Method 1} is used (see \bold{Details})  and \code{verbose = T}.
+#' \code{Prices} \tab A data frame of Stitched futures prices. Each row represents an observation of the specified contracts. \cr
 #'
-#'\code{Tickers} A data frame of the named columns of observed futures prices (e.g. contract tickers). Returned only when \code{Futures} or \code{maturity.matrix} have named columns and \code{verbose = T}.
+#' \code{Maturities} \tab A data frame of the time-to-maturity of observed futures prices. Each row represents an observation of the
+#'specified contracts. Returned only when \bold{Method 1} is used (see \bold{Details})  and \code{verbose = T}. \cr
+#'
+#' \code{Tickers} \tab  A data frame of the named columns of observed futures prices (e.g. contract tickers). Returned only when \code{Futures} or \code{maturity.matrix} have named columns and \code{verbose = T}. \cr
+#' }
 #'
 #'@examples
 #'##These examples approximately replicate the Crude Oil data utilized within the
@@ -390,7 +393,7 @@ A_T <- function(parameters, Tt){
   return(output)
 }
 
-#'model_covariance: (formerly cov_func)
+#'N-factor Covariance:
 #'
 #'@description
 #'\loadmathjax
@@ -437,14 +440,23 @@ cov_func <- function(parameters, dt){
   return(output)
 }
 
-#'NFCP.bounds
+#'N-Factor MLE Search Boundaries
 #'@description Generate boundaries for the domain of parameters of the N-factor model for parameter estimation.
 #'
 #'@param parameters a vector of parameter names of an N-factor model. Function \code{NFCP.Parameters} is recommended.
+#'@param kappa A vector of length two specifying the lower and upper bounds for the 'kappa' parameter
+#'@param lambda A vector of length two specifying the lower and upper bounds for the 'lambda' parameter
+#'@param sigma A vector of length two specifying the lower and upper bounds for the 'sigma' parameter
+#'@param mu A vector of length two specifying the lower and upper bounds for the 'mu' parameter
+#'@param mu_star A vector of length two specifying the lower and upper bounds for the 'mu_star' parameter
+#'@param rho A vector of length two specifying the lower and upper bounds for the 'rho' parameter
+#'@param contract A vector of length two specifying the lower and upper bounds for the 'contract' parameter
+#'@param X.0 A vector of length two specifying the lower and upper bounds for the 'X.0' parameter
+#'@param E A vector of length two specifying the lower and upper bounds for the 'E' parameter
 #'
 #'@details
-#'The \code{NFCP.bounds} function is called 'as-is' within the \code{NFCP.MLE} function when domains are not provided as an input. \code{NFCP.bounds}
-#'allows easy setting of custom boundaries for parameter estimation, whilst also providing default domains of parameters that should realistically work for all types of observation datasets.
+#'The \code{NFCP.Domains} function generates lower and upper bounds for the parameter estimation procedure in the format required of the 'Domains' argument of the 'genoud' function. \code{NFCP.Domains}
+#'allows easy setting of custom boundaries for parameter estimation, whilst also providing default domains of parameters.
 #'
 #'@return
 #'A matrix of defaulted domains for the given unknown parameters. The first column corresponds to the lower bound of the
@@ -469,34 +481,66 @@ cov_func <- function(parameters, dt){
 #'                                 S.Constant = TRUE)
 #'
 #'###Generate the default 'domains' argument of 'NFCP.MLE' function:
-#'NFCP.MLE.Bounds <- NFCP.bounds(SS.parameters)
+#'NFCP.MLE.Bounds <- NFCP.Domains(SS.parameters)
 #'@export
-NFCP.bounds <- function(parameters){
+NFCP.Domains <- function(parameters,
+                        kappa = NULL,
+                        lambda = NULL,
+                        sigma = NULL,
+                        mu = NULL,
+                        mu_star = NULL,
+                        rho = NULL,
+                        contract = NULL,
+                        X.0 = NULL,
+                        E = NULL){
+
+  if(is.null(kappa))    kappa    <- c(1e-5, 50)
+  if(is.null(lambda))   lambda   <- c(-10, 10)
+  if(is.null(sigma))    sigma    <- c(0, 10)
+  if(is.null(mu))       mu       <- c(-10, 10)
+  if(is.null(mu_star))  mu_star  <- c(-10, 10)
+  if(is.null(rho))      rho      <- c(-1, 1)
+  if(is.null(contract)) contract <- c(1e-10, 1)
+  if(is.null(X.0))      X.0      <- c(-10, 10)
+  if(is.null(E))        E        <- c(-10, 10)
+
+
 
   ##The Bounds:
   lower_bounds <- upper_bounds <- rep(0, length(parameters))
-  ##
-  lower_bounds[parameters == "E"] <- -10
-  upper_bounds[parameters == "E"] <-  10
 
-  ##Risk-Premiums and Growth Rates can be whatever, but let's set them to a reasonable number:
-  lower_bounds[grepl("lambda", parameters, fixed = TRUE) | grepl("mu", parameters, fixed = TRUE)] <- -10
-  upper_bounds[grepl("lambda", parameters, fixed = TRUE) | grepl("mu", parameters, fixed = TRUE)] <- 10
-  ##Reverting Rates and Volatilities can't be negative:
-  lower_bounds[grepl("kappa", parameters, fixed = TRUE) | grepl("sigma", parameters, fixed = TRUE)] <- 1e-5
-  upper_bounds[grepl("kappa", parameters, fixed = TRUE)] <- 10
-  upper_bounds[grepl("sigma", parameters, fixed = TRUE)] <- 5
+  ## Equilibrium Price (GBM = FALSE)
+  lower_bounds[parameters == "E"] <- E[1]
+  upper_bounds[parameters == "E"] <- E[2]
+
+  ## Risk-premium (lambda)
+  lower_bounds[grepl("lambda", parameters)] <- lambda[1]
+  upper_bounds[grepl("lambda", parameters)] <- lambda[2]
+
+  ## long-term growth rate
+  lower_bounds[grepl("mu", parameters)] <- mu[1]
+  upper_bounds[grepl("mu", parameters)] <- mu[2]
+
+  ## kappa
+  lower_bounds[grepl("kappa", parameters)] <- kappa[1]
+  upper_bounds[grepl("kappa", parameters)] <- kappa[2]
+
+  ## sigma
+  lower_bounds[grepl("sigma", parameters)] <- sigma[1]
+  upper_bounds[grepl("sigma", parameters)] <- sigma[2]
+
+
   ###Setting White noise bounds that are too low will result in a singular matrix (1e-5^2 == 1e-10):
-  # lower_bounds[grepl("epsilon", parameters, fixed = TRUE)] = ifelse(S.Constant, 5e-4, 1e-5)
-  lower_bounds[grepl("contract", parameters, fixed = TRUE)] <- 1e-5
-  upper_bounds[grepl("contract", parameters, fixed = TRUE)] <- 0.5
+
+  lower_bounds[grepl("contract", parameters)] <- contract[1]
+  upper_bounds[grepl("contract", parameters)] <- contract[2]
   ##Correlation between -1 and 1:
-  lower_bounds[grepl("rho", parameters, fixed = TRUE)] <- -1
-  upper_bounds[grepl("rho", parameters, fixed = TRUE)] <- 1
+  lower_bounds[grepl("rho", parameters)] <- rho[1]
+  upper_bounds[grepl("rho", parameters)] <- rho[2]
 
   ###Initial Inputs:
-  lower_bounds[grepl("X.0_", parameters, fixed = TRUE)] <- -10
-  upper_bounds[grepl("X.0_", parameters, fixed = TRUE)] <- 10
+  lower_bounds[grepl("X.0_", parameters)] <- X.0[1]
+  upper_bounds[grepl("X.0_", parameters)] <- X.0[2]
   bounds <- cbind(lower_bounds, upper_bounds)
   colnames(bounds) <- c("Lower Bound", "Upper Bound")
   rownames(bounds) <- parameters

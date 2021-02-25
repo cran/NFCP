@@ -2,7 +2,7 @@
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  fig.width = 6,
+  fig.width = 7,
   fig.height = 6,
   fig.align = 'center'
 )
@@ -50,7 +50,6 @@ SS.Oil.2F <- NFCP.Kalman.filter(
  debugging = TRUE)
 
 ## -----------------------------------------------------------------------------
-
 ### Assume constant white noise in parameters of 1%:
 SS.Oil.Two.Factor <- SS.Oil$Two.Factor
 SS.Oil.Two.Factor <- SS.Oil.Two.Factor[!grepl("contract", names(SS.Oil.Two.Factor))]
@@ -65,22 +64,20 @@ SS.Oil.2F.Contracts <- NFCP.Kalman.filter(
  verbose = TRUE,
  debugging = TRUE)
 
-
 ## -----------------------------------------------------------------------------
 # Estimate a GBM model:
-# This function takes approximately 20 seconds to run:
 SS.Oil.1F <- NFCP.MLE(
-      #### Arguments
+      ## Arguments
       log.futures = log(SS.Oil$Stitched.Futures),
       dt = SS.Oil$dt,
       TTM= SS.Oil$Stitched.TTM,
       S.Constant = FALSE, 
-      N.factors = 1, 
+      N.factors = 1,
       GBM = TRUE,
       cluster = NULL,
       Richardsons.Extrapolation = TRUE,
-      #### Genoud arguments:
-      pop.size = 1500, optim.method = "L-BFGS-B", print.level = 0, hessian = TRUE,
+      ## Genoud arguments:
+      pop.size = 1000, optim.method = "L-BFGS-B", print.level = 0, hessian = TRUE,
       max.generations = 100, solution.tolerance = 0.1)
 
 ##Print results:
@@ -98,32 +95,28 @@ print(c(`Log Likelihood: Two-Factor` = SS.Oil.2F$LL))
 print(round(SS.Oil.2F$TSFit.Error,4))
 
 ## -----------------------------------------------------------------------------
-Bias <- c(`One-Factor` = mean(SS.Oil.1F$V, na.rm = TRUE), 
-          `Two-Factor` = mean(SS.Oil.2F$V, na.rm = TRUE))
-RMSE <- c(`One-Factor` = sqrt(mean(c(SS.Oil.1F$V)^2, na.rm = TRUE)), 
-          `Two-Factor` = sqrt(mean(c(SS.Oil.2F$V)^2, na.rm = TRUE)))
-
+Bias <- c(`One-Factor` = SS.Oil.1F$Filtered.Error["Bias"], 
+          `Two-Factor` = SS.Oil.2F$Filtered.Error["Bias"])
+RMSE <- c(`One-Factor` = SS.Oil.1F$Filtered.Error["RMSE"], 
+          `Two-Factor` = SS.Oil.2F$Filtered.Error["RMSE"])
 print(round(cbind(RMSE, Bias), 4))
 
 
-## ---- figures-side, fig.show="hold", out.width="50%"--------------------------
-# Plot model error:
-
+## ---- out.width='.49\\linewidth'----------------------------------------------
 ##One Factor
 matplot(as.Date(rownames(SS.Oil.1F$V)), SS.Oil.1F$V, type = 'l',
-xlab = "", ylab = "Observation Error (%)",
+xlab = "", ylab = "Observation Error",
 main = "Contract Observation Error: One-Factor Model"); legend("bottomright", 
 colnames(SS.Oil.2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 
 ##Two-Factor
 matplot(as.Date(rownames(SS.Oil.2F$V)), SS.Oil.2F$V, type = 'l',
-xlab = "", ylab = "Observation Error (%)", ylim = c(-0.3, 0.2),
+xlab = "", ylab = "Observation Error", ylim = c(-0.3, 0.2),
 main = "Contract Observation Error: Two-Factor Model"); legend("bottomright", 
 colnames(SS.Oil.2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 
-
 ## -----------------------------------------------------------------------------
-matplot(cbind(SS.Oil.1F$TSFit.Error["RMS Error",], SS.Oil.2F$TSFit.Error["RMS Error",]), 
+matplot(cbind(SS.Oil.1F$TSFit.Error["RMSE",], SS.Oil.2F$TSFit.Error["RMSE",]), 
      type = 'l', main = "Root Mean Squared Error of Futures Contracts", 
      xlab = "Contract", ylab = "RMSE"); legend("right",c("One-Factor", "Two-Factor"),
                                                col=1:2,cex=0.8,fill=1:2)
@@ -138,6 +131,27 @@ SS.Figure.4 <- cbind(`Equilibrium Price` =
 matplot(as.Date(rownames(SS.Figure.4)), SS.Figure.4, type = 'l',
 xlab = "", ylab = "Oil Price ($/bbl, WTI)", col = 1,
  main = "Estimated Spot and Equilibrium Prices for the Futures Data")
+
+## -----------------------------------------------------------------------------
+Observation.Dates <- as.Date(rownames(SS.Oil$Contracts))
+
+plot(Observation.Dates, sqrt(SS.Oil.2F$P_t[1,1,]), type = 'l', 
+     xlab = "Date", ylab = "Std. Dev.")
+
+
+## -----------------------------------------------------------------------------
+plot(Observation.Dates, sqrt(SS.Oil.2F$P_t[2,2,]), type = 'l', 
+     xlab = "Date", ylab = "Std. Dev.")
+
+## -----------------------------------------------------------------------------
+plot(as.Date(rownames(SS.Oil$Contracts)), sqrt(SS.Oil.2F.Contracts$P_t[1,1,]), 
+     type = 'l', xlab = "Date", ylab = "Std. Dev.", 
+     main = "Time Series of the Std. Dev for State Variable 1")
+
+## -----------------------------------------------------------------------------
+plot(x = Observation.Dates, sqrt(SS.Oil.2F.Contracts$P_t[2,2,]), 
+     type = 'l', xlab = "Date", ylab = "Std. Dev.", 
+     main = "Time Series of the Std. Dev for State Variable 2")
 
 ## -----------------------------------------------------------------------------
 ##Figure 1 and 2 of Schwartz and Smith (2000) was developed using Enron data
@@ -182,18 +196,17 @@ matplot(seq(0,9,1/12), log(SS.Figure.2), type = 'l', col = 1,
         main = "Futures Prices and Expected Spot Prices")
 
 ## -----------------------------------------------------------------------------
-
 ## Maximum Observed Maturity:
 Max.Maturity <- max(tail(SS.Oil$Contract.Maturities,1), na.rm = TRUE)
 
 ##Estimated Futures Prices:
 
-### One Factor GBM:
+### One Factor (GBM):
 Oil.TS.1F <- Futures.Price.Forecast(X.0 = SS.Oil.1F$X.t,
                                          parameters = SS.Oil.1F$Estimated.Parameters,
                                          TTM = seq(0,Max.Maturity,1/12))
 
-### Two Factor GBM:
+### Two Factor:
 Oil.TS.2F <- Futures.Price.Forecast(X.0 = SS.Oil.2F$X.t,
                                          parameters = SS.Oil$Two.Factor,
                                          TTM = seq(0,Max.Maturity,1/12))
@@ -209,8 +222,7 @@ legend("bottomleft", c("One-factor", "Two-Factor", "Observed"),
 ## -----------------------------------------------------------------------------
 ###Test the Volatility Term Structure Fit of the Schwartz-Smith Two-Factor Oil Model:
 V_TSFit <- TSFit.Volatility(
- parameter.values = SS.Oil$Two.Factor,
- parameters = names(SS.Oil$Two.Factor),
+ parameters = SS.Oil$Two.Factor,
  Futures = SS.Oil$Stitched.Futures,
  TTM = SS.Oil$Stitched.TTM,
  dt = SS.Oil$dt)
@@ -222,20 +234,6 @@ xlab = "Maturity (Years)", ylab = "Volatility (%)",
 ylim = c(0, 0.5), main = "Volatility Term Structure of Futures Returns"); points(
 V_TSFit["Maturity",], V_TSFit["Empirical Volatility",]); legend("bottomleft", 
                   c("Empirical", "One-Factor", "Two-Factor"),col=0:2,cex=0.8,fill=0:2)
-
-## -----------------------------------------------------------------------------
-print(SS.Oil.2F$X.t)
-
-## -----------------------------------------------------------------------------
-## Calculate Option Value:
-Oil.Option.Value <- European.Option.Value(X.0 = SS.Oil.2F$X.t,
-                                             parameters = SS.Oil$Two.Factor,
-                                             t = 1,
-                                             TTM = 1,
-                                             K = 20,
-                                             r = 0.05,
-                                             call = TRUE, verbose = TRUE)
-print(Oil.Option.Value)
 
 ## -----------------------------------------------------------------------------
 ##100 antithetic simulations of one year of monthly observations
@@ -285,23 +283,107 @@ matplot(as.Date(rownames(SS.Oil$Contracts)), Simulated.Contracts$Futures,
         main = "Simulated Futures Contracts")
 
 ## -----------------------------------------------------------------------------
-Observation.Dates <- as.Date(rownames(SS.Oil$Contracts))
+## One-Factor European put option value: 
+European.Oil.1F <- European.Option.Value(X.0 = SS.Oil.1F$X.t,
+                                             parameters = SS.Oil.1F$Estimated.Parameters,
+                                             t = 1,
+                                             TTM = 1,
+                                             K = 20,
+                                             r = 0.05,
+                                             call = FALSE)
 
-plot(Observation.Dates, sqrt(SS.Oil.2F$P_t[1,1,]), type = 'l', 
-     xlab = "Date", ylab = "Std. Dev.")
+## Two-Factor European put option value: 
+European.Oil.2F <- European.Option.Value(X.0 = SS.Oil.2F$X.t,
+                                             parameters = SS.Oil$Two.Factor,
+                                             t = 1,
+                                             TTM = 1,
+                                             K = 20,
+                                             r = 0.05,
+                                             call = FALSE)
+## Print results:
+print(round(c(One.Factor = European.Oil.1F, Two.Factor = European.Oil.2F),3))
 
 
 ## -----------------------------------------------------------------------------
-plot(Observation.Dates, sqrt(SS.Oil.2F$P_t[2,2,]), type = 'l', 
-     xlab = "Date", ylab = "Std. Dev.")
+## One-Factor American put option value: 
+American.Oil.1F <- American.Option.Value(X.0 = SS.Oil.1F$X.t,
+                      parameters = SS.Oil.1F$Estimated.Parameters,
+                      n = 1e5,
+                      t = 1,
+                      dt = 1/50,
+                      K = 20,
+                      r = 0.05)
+
+## Two-Factor American put option value: 
+American.Oil.2F <- American.Option.Value(X.0 = SS.Oil.2F$X.t,
+                      parameters = SS.Oil$Two.Factor,
+                      n = 1e5,
+                      t = 1,
+                      dt = 1/50,
+                      K = 20,
+                      r = 0.05,
+                      verbose = FALSE,
+                      orthogonal = "Power",
+                      degree = 2)
+
+print(round(c(One.Factor = American.Oil.1F, Two.Factor = American.Oil.2F),3))
+
 
 ## -----------------------------------------------------------------------------
-plot(as.Date(rownames(SS.Oil$Contracts)), sqrt(SS.Oil.2F.Contracts$P_t[1,1,]), 
-     type = 'l', xlab = "Date", ylab = "Std. Dev.", 
-     main = "Time Series of the Std. Dev for State Variable 1")
+## Exercise opportunities per year:
+dt <- 1/50
+## strike price :
+K <- 40
+## short-term interest rate:
+rf <- 0.06
+## 100,000 simulations (50% antithetic):
+N.simulations <- 1e5
+## Stock price volatility (variable):
+sigma <- rep(c(rep(0.2,2),rep(0.4,2)),5)
+## Initial Stock price (variable):
+S0 <- sort(rep(seq(36,44,2),4))
+## Option maturity (variable):
+TTM <- rep(1:2, 10)
+
+LSM.output <- matrix(0, 20, 4, 
+                     dimnames = list(NULL, c("LSM American", "(s.e)", 
+                                             "Closed form European", 
+                                             "Early exercise value")))
+
+## Cycle through the rows of the table:
+for(i in 1:20){
+  
+## Stochastic model assumption:
+Stockparameters <- c(mu_star = (rf - 0.5 * sigma[i]^2), sigma_1 = sigma[i])
+    
+## American option pricing through LSM Simulation
+output <- American.Option.Value(X.0 = log(S0[i]),
+                      parameters = Stockparameters,
+                      n = N.simulations,
+                      t = TTM[i],
+                      dt = dt,
+                      K = K,
+                      r = rf,
+                      orthogonal = "Laguerre",
+                      degree = 3,
+                      verbose = TRUE)
+
+LSM.output[i,1] <- output$Value
+LSM.output[i,2]  <- output$`Standard Error`
+
+## European option pricing through the BSM PDE
+LSM.output[i,3] <- European.Option.Value(X.0 = log(S0[i]), parameters = Stockparameters, 
+                                  t = TTM[i], TTM = TTM[i], K = K, r = rf, call = FALSE)
+
+## Early exercise value - the difference between American and European put values:
+LSM.output[i,4] <- LSM.output[i,1] - LSM.output[i,3]
+
+}
+
 
 ## -----------------------------------------------------------------------------
-plot(x = Observation.Dates, sqrt(SS.Oil.2F.Contracts$P_t[2,2,]), 
-     type = 'l', xlab = "Date", ylab = "Std. Dev.", 
-     main = "Time Series of the Std. Dev for State Variable 2")
+## Compile and print results:
+LnS.Table1 <- cbind.data.frame(S = S0, sigma = sigma, T = TTM, LSM.output)
+print(round(LnS.Table1,3))
+
 
