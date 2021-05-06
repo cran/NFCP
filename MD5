@@ -1,7 +1,7 @@
-ef931b64ea00ade62ee3cd244f8eb59e *DESCRIPTION
+505b0f5aff6312bb487b9b9d4d4a5f31 *DESCRIPTION
 e5709800b3efdcc5d086913d0e298d3e *NAMESPACE
-8336e32d5b690be527418b76923067ba *NEWS.md
-6a5088977aa9ad483abefb3ace9ffe18 *R/Kalman_filter.R
+de2e9fd87ada086969aad135fdd4ee1a *NEWS.md
+69213298a3f1369d3266ee1a5cc1c844 *R/Kalman_filter.R
 1aea2b59b7bf5a66faee52b2549c243d *R/NFCPdescription.R
 95828a4c30656d34e893a51e89f1ae20 *R/analysis.R
 bce9b6f09fe0945ff2aac43d31f7aec9 *R/data_description.R
@@ -11,7 +11,7 @@ ae66e52df165cbc06911f41ecc1d24cf *R/option_valuation.R
 d95c0efe2fbb87049739942358ade1e3 *R/parameter_estimation.R
 95bc8d641c66bb1d35785a416f0460de *R/simulations.R
 f316fdf7f54dcb65be067e261468722e *README.md
-d37b30b73ac81fdeae565c5f0b149abe *build/NFCP.pdf
+344033a04dacd9715dbc1c00200066d2 *build/NFCP.pdf
 2cebe2b008ce60e1051a3707deaeefd1 *build/vignette.rds
 4c4271b096ce10c0518ef3bc64e88bec *data/SS.Oil.rda
 c2df55872d114504c96d18455dd965ff *data/SS_oil.rda
@@ -29,7 +29,7 @@ a3b35869a35ea0a928a85ea7bc78c828 *man/European.Option.Value.Rd
 a1a726dfc72a9eea9446489423a047dc *man/NFCP.Kalman.filter.Rd
 2eaa1d564dd64d07721e7f8d4e32d24f *man/NFCP.MLE.Rd
 8d4ad636ec9fee97943ea2665ad53ba3 *man/NFCP.Parameters.Rd
-7f7b9a10ad171077b2364afbbfcad520 *man/NFCP_Kalman_filter.Rd
+ec17871722e6a6f151535c1fcf7fdd10 *man/NFCP_Kalman_filter.Rd
 500a83f29f85e86b98a8037808c68fd2 *man/NFCP_MLE.Rd
 9fb89186b7fe9b6777776a377a55b926 *man/NFCP_domains.Rd
 854e670636240cae0c276fb1a314ff24 *man/NFCP_parameters.Rd

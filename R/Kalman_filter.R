@@ -562,7 +562,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
 
     ###Volatility TSFit:
     if(contract_data) {
-      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[,nrow(futures_TTM)], dt)
+      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[,ncol(futures_TTM)], dt)
     } else {
       Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM, dt) }
 
