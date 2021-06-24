@@ -39,7 +39,7 @@ print(SS_oil$two_factor)
 ##Example 1 - Replicating the Schwartz and Smith (2000)
 ##Two-Factor Crude Oil commodity pricing model:
 
-SS_oil_2F <- NFCP_Kalman_filter(
+Oil_2F <- NFCP_Kalman_filter(
  parameter_values = SS_oil$two_factor,
  parameter_names = names(SS_oil$two_factor),
  log_futures = log(SS_oil$stitched_futures),
@@ -50,14 +50,13 @@ SS_oil_2F <- NFCP_Kalman_filter(
 
 
 ## -----------------------------------------------------------------------------
+Oil_2F_parameters <- SS_oil$two_factor[1:7]
 ### Assume a constant measurement error in parameters of 1%:
-SS_oil_2F_parameters <- SS_oil$two_factor
-SS_oil_2F_parameters <- SS_oil_2F_parameters[!grepl("ME", names(SS_oil_2F_parameters))]
-SS_oil_2F_parameters["ME_1"] <- 0.01
+Oil_2F_parameters["ME_1"] <- 0.01
 
-SS_oil_2F_contracts <- NFCP_Kalman_filter(
- parameter_values = SS_oil_2F_parameters,
- parameter_names = names(SS_oil_2F_parameters),
+Oil_2F_contracts <- NFCP_Kalman_filter(
+ parameter_values = Oil_2F_parameters,
+ parameter_names = names(Oil_2F_parameters),
  log_futures = log(SS_oil$contracts),
  futures_TTM = SS_oil$contract_maturities,
  dt = SS_oil$dt,
@@ -70,7 +69,7 @@ print(SS_oil$two_factor[8:12])
 
 ## -----------------------------------------------------------------------------
 # Estimate a GBM model:
-SS_oil_1F <- NFCP_MLE(
+Oil_1F <- NFCP_MLE(
       ## Arguments
       log_futures = log(SS_oil$stitched_futures),
       dt = SS_oil$dt,
@@ -78,50 +77,48 @@ SS_oil_1F <- NFCP_MLE(
       N_ME = 3,
       ME_TTM = c(0.5, 1, 1.5),
       N_factors = 1,
-      GBM = TRUE,
-      cluster = NULL,
-      Richardsons_extrapolation = TRUE,
-      ## Genoud arguments:
-      pop.size = 1000, optim.method = "L-BFGS-B", print.level = 0, hessian = TRUE,
-      max.generations = 100, solution.tolerance = 0.1)
+      N_season = 0,
+      print.level = 0, pop.size = 1000)
 
 ##Print results:
-print(round(cbind(`Estimated Parameter` = SS_oil_1F$estimated_parameters, 
-                  `Standard Error` = SS_oil_1F$standard_errors),4))
+print(round(rbind(`Estimated Parameter` = Oil_1F$estimated_parameters, 
+                  `Standard Error` = Oil_1F$standard_errors),4))
 
 ## -----------------------------------------------------------------------------
-print(c(`Log-Likelihood: One-Factor` = SS_oil_1F$MLE))
+print(matrix(c(Oil_1F$MLE, Oil_2F$`Log-Likelihood`), 
+             dimnames = list(c("One-Factor", "Two-Factor"), "Log-Likelihood")))
 
 ## -----------------------------------------------------------------------------
-print(c(`Log-Likelihood: Two-Factor` = SS_oil_2F$`Log-Likelihood`))
+print(round(rbind("One-Factor" = Oil_1F$`Information Criteria`, 
+                  "Two-Factor" = Oil_2F$`Information Criteria`), 4))
 
 ## -----------------------------------------------------------------------------
 ##Replicate Table 3 of Schwartz and Smith (2000):
-print(round(SS_oil_2F[["Term Structure Fit"]],4))
+print(round(t(Oil_2F[["Term Structure Fit"]]),4))
 
 ## -----------------------------------------------------------------------------
 CN_table3 <- matrix(nrow = 2, ncol = 2, dimnames = list(c("One-Factor","Two-Factor"), c("RMSE", "Bias")))
-CN_table3[,"Bias"] <- c(SS_oil_1F$`Filtered Error`["Bias"], SS_oil_2F$`Filtered Error`["Bias"])
-CN_table3[,"RMSE"] <- c(SS_oil_1F$`Filtered Error`["RMSE"], SS_oil_2F$`Filtered Error`["RMSE"])
+CN_table3[,"Bias"] <- c(Oil_1F$`Filtered Error`["Bias"], Oil_2F$`Filtered Error`["Bias"])
+CN_table3[,"RMSE"] <- c(Oil_1F$`Filtered Error`["RMSE"], Oil_2F$`Filtered Error`["RMSE"])
 
 print(round(CN_table3, 4))
 
 
 ## ---- out.width='.49\\linewidth'----------------------------------------------
 ##One Factor
-matplot(as.Date(rownames(SS_oil_1F$V)), SS_oil_1F$V, type = 'l',
+matplot(as.Date(rownames(Oil_1F$V)), Oil_1F$V, type = 'l',
 xlab = "", ylab = "Observation Error",
 main = "Contract Observation Error: One-Factor Model"); legend("bottomright", 
-colnames(SS_oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
+colnames(Oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 
 ##Two-Factor
-matplot(as.Date(rownames(SS_oil_2F$V)), SS_oil_2F$V, type = 'l',
+matplot(as.Date(rownames(Oil_2F$V)), Oil_2F$V, type = 'l',
 xlab = "", ylab = "Observation Error", ylim = c(-0.3, 0.2),
 main = "Contract Observation Error: Two-Factor Model"); legend("bottomright", 
-colnames(SS_oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
+colnames(Oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 
 ## -----------------------------------------------------------------------------
-matplot(cbind(SS_oil_1F$`Term Structure Fit`["RMSE",], SS_oil_2F$`Term Structure Fit`["RMSE",]), 
+matplot(cbind(Oil_1F$`Term Structure Fit`["RMSE",], Oil_2F$`Term Structure Fit`["RMSE",]), 
      type = 'l', main = "Root Mean Squared Error of Futures Contracts", 
      xlab = "Contract", ylab = "RMSE"); legend("right",c("One-Factor", "Two-Factor"),
                                                col=1:2,cex=0.8,fill=1:2)
@@ -129,16 +126,16 @@ matplot(cbind(SS_oil_1F$`Term Structure Fit`["RMSE",], SS_oil_2F$`Term Structure
 ## -----------------------------------------------------------------------------
 ##Replicate Figure 4 of Schwartz and Smith (2000):
 SS_figure_4 <- cbind(`Equilibrium Price` =
-                     exp(SS_oil_2F$X[,1]),
+                     exp(Oil_2F$X[,1]),
                     `Spot Price` =
-                     SS_oil_2F$Y[,"filtered Spot"])
+                     Oil_2F$Y[,"filtered Spot"])
 
 matplot(as.Date(rownames(SS_figure_4)), SS_figure_4, type = 'l',
 xlab = "", ylab = "Oil Price ($/bbl, WTI)", col = 1,
  main = "Estimated Spot and Equilibrium Prices for the Futures Data")
 
 ## -----------------------------------------------------------------------------
-plot(as.Date(rownames(SS_oil$contracts)), sqrt(SS_oil_2F_contracts$P_t[1,1,]), 
+plot(as.Date(rownames(SS_oil$contracts)), sqrt(Oil_2F_contracts$P_t[1,1,]), 
      type = 'l', xlab = "Date", ylab = "Std. Dev.", 
      main = "Time Series of the Std. Dev for State Variable 1")
 
@@ -146,7 +143,7 @@ plot(as.Date(rownames(SS_oil$contracts)), sqrt(SS_oil_2F_contracts$P_t[1,1,]),
 ##Figure 1 and 2 of Schwartz and Smith (2000) was developed using Enron data
 ##and an assumption that mu was approximately 3% p.a.:
 Enron_values <- c(0.0300875, 0.0161, 0.014, 1.19, 0.115, 0.158, 0.189)
-names(Enron_values) <- NFCP_parameters(2, TRUE, FALSE, 0, FALSE)
+names(Enron_values) <- NFCP_parameters(2, TRUE, FALSE, 0, FALSE, FALSE)
 
 
 ## -----------------------------------------------------------------------------
@@ -192,12 +189,12 @@ max_maturity <- max(tail(SS_oil$contract_maturities,1), na.rm = TRUE)
 ##Estimated Futures Prices:
 
 ### One Factor (GBM):
-oil_TS_1F <- futures_price_forecast(x_0 = SS_oil_1F$x_t,
-                                         parameters = SS_oil_1F$estimated_parameters,
+oil_TS_1F <- futures_price_forecast(x_0 = Oil_1F$x_t,
+                                         parameters = Oil_1F$estimated_parameters,
                                          futures_TTM = seq(0,max_maturity,1/12))
 
 ### Two Factor:
-oil_TS_2F <- futures_price_forecast(x_0 = SS_oil_2F$x_t,
+oil_TS_2F <- futures_price_forecast(x_0 = Oil_2F$x_t,
                                          parameters = SS_oil$two_factor,
                                          futures_TTM = seq(0,max_maturity,1/12))
 
@@ -218,7 +215,7 @@ V_TSFit <- TSfit_volatility(
  dt = SS_oil$dt)
 
 ##Plot Results:
-matplot(V_TSFit["Maturity",], cbind(SS_oil_1F$`Term Structure Volatility Fit`["Theoretical Volatility",], 
+matplot(V_TSFit["Maturity",], cbind(Oil_1F$`Term Structure Volatility Fit`["Theoretical Volatility",], 
                                     V_TSFit["Theoretical Volatility",]), type = 'l',
 xlab = "Maturity (Years)", ylab = "Volatility (%)", 
 ylim = c(0, 0.5), main = "Volatility Term Structure of Futures Returns"); points(
@@ -228,7 +225,7 @@ V_TSFit["Maturity",], V_TSFit["Empirical Volatility",]); legend("bottomleft",
 ## -----------------------------------------------------------------------------
 ##100 antithetic simulations of one year of monthly observations
 simulated_spot_prices <- spot_price_simulate(
- x_0 = SS_oil_2F$x_t,
+ x_0 = Oil_2F$x_t,
  parameters = SS_oil$two_factor,
  t = 1,
  dt = 1/12,
@@ -243,13 +240,6 @@ matplot(seq(0,1,1/12), simulated_spot_prices$spot_prices, type = 'l',
 
 
 ## -----------------------------------------------------------------------------
-##Not Run - Plot Antithetic Price Pairs:
-matplot(seq(0,1,1/12), simulated_spot_prices$spot_prices[,1:2], type = 'l', 
-        xlab = "Forecasting Horizon (Years)", 
-        ylab = "Spot Price ($/bbl, WTI)", 
-        main = "Simulated Crude Oil Antithetic Price Pair")
-
-## -----------------------------------------------------------------------------
 ##Plot 95% Prediction interval:
 prediction_interval <- rbind.data.frame(apply(simulated_spot_prices$spot_prices, 1,
                        FUN = function(x) stats::quantile(x, probs = c(0.025, 0.975))),
@@ -262,7 +252,7 @@ ylab = "Spot Price ($/bbl, WTI)", main = "Simulated Crude Oil 95% Confidence Int
 ## Simulate Crude Oil Contract Prices under a Two-Factor model
 
 simulated_contracts <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
-                                            parameters = SS_oil_2F_parameters,
+                                            parameters = Oil_2F_parameters,
                                             dt = SS_oil$dt,
                                             N_obs = nrow(SS_oil$contracts),
                                             futures_TTM = SS_oil$contract_maturities)
@@ -273,113 +263,42 @@ matplot(as.Date(rownames(SS_oil$contracts)), simulated_contracts$futures_prices,
         main = "Simulated Futures Contracts")
 
 ## -----------------------------------------------------------------------------
-## One-Factor European put option value: 
-European_oil_1F <- European_option_value(x_0 = SS_oil_1F$x_t,
-                                         parameters = SS_oil_1F$estimated_parameters,
-                                         futures_maturity = 1,
-                                         option_maturity  = 1,
-                                         K = 20,
-                                         r = 0.05,
-                                         call = FALSE)
+Option_prices <- matrix(rep(0,2), nrow = 2, ncol = 3, dimnames = list(c("One-Factor", "Two-Factor"), c("European", "American", "Early Exercise Value")))
 
-## Two-Factor European put option value: 
-European_oil_2F <- European_option_value(x_0 = SS_oil_2F$x_t,
+# Strike Price:
+strike <- 20
+# Annual risk-free interest rate:
+risk_free <- 0.05
+# Maturity of option and future:
+option <- 1
+future <- 2
+## American option only - number of antithetic simulations, time step (in years):
+time_step <- 1/50
+monte_carlo <- 1e5
+
+## One-factor European put option value: 
+Option_prices[1,1] <- European_option_value(x_0 = Oil_1F$x_t,
+                                            parameters = Oil_1F$estimated_parameters,
+                                            futures_maturity = future, option_maturity  = option, K = strike, r = risk_free)
+## Two-factor European put option value: 
+Option_prices[2,1] <- European_option_value(x_0 = Oil_2F$x_t,
                                          parameters = SS_oil$two_factor,
-                                         futures_maturity = 1,
-                                         option_maturity = 1,
-                                         K = 20,
-                                         r = 0.05,
-                                         call = FALSE)
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free)
+
+## One-factor American put option value:
+Option_prices[1,2] <- American_option_value(x_0 = Oil_1F$x_t,
+                                         parameters = Oil_1F$estimated_parameters,
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free, 
+                                         N_simulations = monte_carlo, dt = time_step)
+## Two-factor American put option value:
+Option_prices[2,2] <- American_option_value(x_0 = Oil_2F$x_t,
+                                         parameters = SS_oil$two_factor,
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free, 
+                                         N_simulations = monte_carlo, dt = time_step)
+
+Option_prices[,3] <- Option_prices[,2] - Option_prices[,1]
+
 ## Print results:
-print(round(c("One Factor" = European_oil_1F, "Two Factor" = European_oil_2F),3))
-
-
-## -----------------------------------------------------------------------------
-## One-Factor American put option value: 
-American_oil_1F <- American_option_value(x_0 = SS_oil_1F$x_t,
-                      parameters = SS_oil_1F$estimated_parameters,
-                      N_simulations = 1e5,
-                      option_maturity = 1,
-                      dt = 1/50,
-                      K = 20,
-                      r = 0.05)
-
-## Two-Factor American put option value: 
-American_oil_2F <- American_option_value(x_0 = SS_oil_2F$x_t,
-                      parameters = SS_oil$two_factor,
-                      N_simulations = 1e5,
-                      option_maturity = 1,
-                      dt = 1/50,
-                      K = 20,
-                      r = 0.05,
-                      verbose = FALSE,
-                      orthogonal = "Power",
-                      degree = 2)
-
-print(round(c("One Factor" = American_oil_1F, "Two Factor" = American_oil_2F),3))
-
-
-## -----------------------------------------------------------------------------
-## Exercise opportunities per year:
-dt <- 1/50
-## strike price :
-K <- 40
-## short-term interest rate:
-rf <- 0.06
-## 100,000 simulations (50% antithetic):
-N_simulations <- 1e5
-## Stock price volatility (variable):
-sigma <- rep(c(rep(0.2,2),rep(0.4,2)),5)
-## Initial Stock price (variable):
-S0 <- sort(rep(seq(36,44,2),4))
-## Option maturity (variable):
-TTM <- rep(1:2, 10)
-
-LSM_output <- matrix(0, 20, 4, 
-                     dimnames = list(NULL, c("LSM American", "(s.e)", 
-                                             "Closed form European", 
-                                             "Early exercise value")))
-
-## Cycle through the rows of the table:
-for(i in 1:20){
-  
-## Stochastic model assumption:
-stock_parameters <- c(mu_rn = (rf - 0.5 * sigma[i]^2), sigma_1 = sigma[i])
-    
-## American option pricing through LSM Simulation
-output <- American_option_value(x_0 = log(S0[i]),
-                      parameters = stock_parameters,
-                      N_simulations = N_simulations,
-                      option_maturity = TTM[i],
-                      dt = dt,
-                      K = K,
-                      r = rf,
-                      orthogonal = "Laguerre",
-                      degree = 3,
-                      verbose = TRUE)
-
-LSM_output[i,1] <- output$Value
-LSM_output[i,2]  <- output$`Standard Error`
-
-## European option pricing through the BSM PDE
-LSM_output[i,3] <- European_option_value(x_0 = log(S0[i]),
-                                         parameters = stock_parameters,
-                                         futures_maturity = TTM[i],
-                                         option_maturity = TTM[i],
-                                         K = K,
-                                         r = rf,
-                                         call = FALSE)
-
-## Early exercise value - the difference between American and European put values:
-LSM_output[i,4] <- LSM_output[i,1] - LSM_output[i,3]
-
-}
-
-
-
-## -----------------------------------------------------------------------------
-## Compile and print results:
-LnS_table_1 <- cbind.data.frame(S = S0, sigma = sigma, T = TTM, LSM_output)
-print(round(LnS_table_1,3))
+print(round(Option_prices,3))
 
 
