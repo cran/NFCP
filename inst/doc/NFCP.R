@@ -68,17 +68,17 @@ Oil_2F_contracts <- NFCP_Kalman_filter(
 print(SS_oil$two_factor[8:12])
 
 ## -----------------------------------------------------------------------------
+
 # Estimate a GBM model:
 Oil_1F <- NFCP_MLE(
       ## Arguments
       log_futures = log(SS_oil$stitched_futures),
       dt = SS_oil$dt,
       futures_TTM= SS_oil$stitched_TTM,
+      N_factors = 1,
       N_ME = 3,
       ME_TTM = c(0.5, 1, 1.5),
-      N_factors = 1,
-      N_season = 0,
-      print.level = 0, pop.size = 1000)
+      print.level = 0)
 
 ##Print results:
 print(round(rbind(`Estimated Parameter` = Oil_1F$estimated_parameters, 
@@ -150,7 +150,7 @@ names(Enron_values) <- NFCP_parameters(2, TRUE, FALSE, 0, FALSE, FALSE)
 ## Replicate figure 1 of Schwartz and Smith (2000):
 
 SS_expected_spot <- spot_price_forecast(x_0 = c(2.857, 0.119),
-                                           Enron_values,
+                                           parameters = Enron_values,
                                            t = seq(0,9,1/12),
                                            percentiles = c(0.1, 0.9))
 ##Factor one only:
@@ -181,6 +181,7 @@ SS_figure_2 <- cbind(SS_expected_spot[,2], SS_futures_curve)
 matplot(seq(0,9,1/12), log(SS_figure_2), type = 'l', col = 1, 
         xlab = "Time (Years)", ylab = "Log(Price)", 
         main = "Futures Prices and Expected Spot Prices")
+
 
 ## -----------------------------------------------------------------------------
 ## Maximum Observed Maturity:
@@ -257,7 +258,7 @@ simulated_contracts <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
                                             N_obs = nrow(SS_oil$contracts),
                                             futures_TTM = SS_oil$contract_maturities)
 
-##Not Run - plot Simulated prices:
+##Plot Simulated prices:
 matplot(as.Date(rownames(SS_oil$contracts)), simulated_contracts$futures_prices, 
         type = 'l', ylab = "Futures Price ($/bbl, WTI)", xlab = "Observations", 
         main = "Simulated Futures Contracts")
